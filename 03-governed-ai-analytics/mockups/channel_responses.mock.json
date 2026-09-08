@@ -1,0 +1,35 @@
+{
+  "classification": "synthetic_portfolio_example",
+  "recovered_implementation": false,
+  "contains_real_operational_data": false,
+  "deployed": false,
+  "answer_envelope": {
+    "request_id": "demo-request-001",
+    "audience": "synthetic-planning-reviewers",
+    "data_classification": "internal",
+    "redaction_status": "not_required",
+    "answer": "Illustrative capacity is below forecast workload for the selected period.",
+    "evidence": [
+      {
+        "source": "Planning Inventory",
+        "version": "synthetic-v1",
+        "measure": "capacity_gap",
+        "value": 120,
+        "classification": "internal"
+      }
+    ],
+    "assumptions": ["Synthetic productive-time assumption v1"],
+    "warnings": ["Example values are not production data"],
+    "download_reference": "demo://authorized-export/001",
+    "approval": {"required": true, "status": "pending"}
+  },
+  "web": {
+    "presentation": "answer_with_expandable_evidence",
+    "answer_binding": "answer_envelope"
+  },
+  "teams": {
+    "presentation": "adaptive_card_summary",
+    "answer_binding": "answer_envelope",
+    "actions": ["View evidence", "Request approval"]
+  }
+}

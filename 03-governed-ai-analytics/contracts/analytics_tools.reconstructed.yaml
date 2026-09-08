@@ -1,0 +1,65 @@
+classification: reconstructed_from_context
+recovered_implementation: false
+implementation_status: design_only
+schema_version: "1.0"
+notation: human_readable_interface_design_not_machine_validated_schema
+
+tools:
+  - name: semantic_inventory_query
+    purpose: Retrieve descriptive measures from an approved semantic entity.
+    authorization: actor_must_have_entity_access
+    input:
+      required: [entity, measures]
+      entity:
+        type: enum
+        values: [planning_inventory]
+      measures:
+        type: array
+        allowed_values: [inventory_count, average_complexity_score, workload_hours]
+      filters:
+        type: array
+        max_items: 10
+        item_fields: [field, operator, value]
+        allowed_fields: [is_ready, equipment_category, complexity_band, reporting_period]
+        allowed_operators: [equals, in, greater_than, less_than]
+      group_by:
+        type: array
+        allowed_values: [equipment_category, complexity_band, reporting_period]
+    output:
+      fields: [rows, semantic_model_version, measure_references, warnings]
+
+  - name: calculate_capacity_scenario
+    purpose: Execute deterministic workload and staffing calculations.
+    authorization: actor_must_have_planning_access
+    input:
+      required: [forecast_version, assumption_version, available_people, productive_minutes_per_person]
+      forecast_version: {type: string}
+      assumption_version: {type: string}
+      available_people: {type: integer, minimum: 0}
+      productive_minutes_per_person: {type: number, exclusive_minimum: 0}
+    output:
+      fields: [scenario_id, workload_minutes, required_people, capacity_gap, trace]
+
+  - name: export_evidence
+    purpose: Create an authorized, short-lived export for a completed request.
+    authorization: actor_must_have_source_and_export_access
+    input:
+      required: [request_id, format, bound_actor_id, bound_tenant_id, authorization_scope_hash]
+      request_id: {type: string, supplied_by: trusted_broker}
+      format: {type: enum, values: [csv, xlsx]}
+      bound_actor_id: {type: string, supplied_by: trusted_broker}
+      bound_tenant_id: {type: string, supplied_by: trusted_broker}
+      authorization_scope_hash: {type: string, supplied_by: trusted_broker}
+    output:
+      fields: [download_reference, expires_at, audience, row_count, source_versions]
+      maximum_ttl_minutes: 15
+
+controls:
+  - authorize_before_tool_selection
+  - validate_and_authorize_every_tool_argument_before_execution
+  - enforce_data_layer_authorization_independently_of_the_model
+  - model_cannot_modify_authorization_scope
+  - deterministic_tools_own_authoritative_arithmetic
+  - outputs_include_assumptions_and_source_versions
+  - consequential_results_require_approval_state
+  - telemetry_excludes_raw_prompts_and_rows

@@ -1,0 +1,93 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.invalid/schemas/answer-evidence.json",
+  "title": "Governed analytics answer envelope",
+  "description": "Synthetic portfolio contract; not a recovered production schema.",
+  "type": "object",
+  "required": ["request_id", "audience", "data_classification", "redaction_status", "answer", "evidence", "assumptions", "warnings", "approval"],
+  "properties": {
+    "request_id": {"type": "string"},
+    "audience": {"type": "string"},
+    "data_classification": {"enum": ["public", "internal", "confidential", "restricted"]},
+    "redaction_status": {"enum": ["not_required", "applied", "blocked"]},
+    "answer": {"type": "string"},
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["source", "version", "measure", "classification"],
+        "properties": {
+          "source": {"type": "string"},
+          "version": {"type": "string"},
+          "measure": {"type": "string"},
+          "value": {"type": ["string", "number", "integer", "boolean", "null"]},
+          "classification": {"enum": ["public", "internal", "confidential", "restricted"]}
+        },
+        "additionalProperties": false
+      }
+    },
+    "assumptions": {"type": "array", "items": {"type": "string"}},
+    "warnings": {"type": "array", "items": {"type": "string"}},
+    "calculation_trace": {"type": "array", "items": {"type": "string"}},
+    "download_reference": {"type": ["string", "null"]},
+    "approval": {
+      "type": "object",
+      "required": ["required", "status"],
+      "properties": {
+        "required": {"type": "boolean"},
+        "status": {"enum": ["not_required", "pending", "approved", "rejected"]},
+        "approver_id": {"type": "string"},
+        "decided_at": {"type": "string", "format": "date-time"},
+        "policy_version": {"type": "string"}
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {"properties": {"required": {"const": false}}},
+          "then": {"properties": {"status": {"const": "not_required"}}}
+        },
+        {
+          "if": {"properties": {"required": {"const": true}}},
+          "then": {"properties": {"status": {"enum": ["pending", "approved", "rejected"]}}}
+        },
+        {
+          "if": {"properties": {"status": {"enum": ["approved", "rejected"]}}},
+          "then": {"required": ["approver_id", "decided_at", "policy_version"]}
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"data_classification": {"const": "public"}}},
+      "then": {
+        "properties": {
+          "evidence": {
+            "items": {"properties": {"classification": {"const": "public"}}}
+          }
+        }
+      }
+    },
+    {
+      "if": {"properties": {"data_classification": {"const": "internal"}}},
+      "then": {
+        "properties": {
+          "evidence": {
+            "items": {"properties": {"classification": {"enum": ["public", "internal"]}}}
+          }
+        }
+      }
+    },
+    {
+      "if": {"properties": {"redaction_status": {"const": "blocked"}}},
+      "then": {
+        "properties": {
+          "answer": {"const": "Response blocked by data policy."},
+          "evidence": {"maxItems": 0},
+          "download_reference": {"type": "null"}
+        }
+      }
+    }
+  ],
+  "additionalProperties": false
+}
