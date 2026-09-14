@@ -17,6 +17,13 @@ class FreshnessResult:
     reason: str
 
 
+@dataclass(frozen=True)
+class ReportingDependency:
+    name: str
+    observed_at: datetime | None
+    maximum_lag: timedelta
+
+
 def evaluate_freshness(
     observed_at: datetime | None,
     now: datetime | None = None,
@@ -41,3 +48,23 @@ def evaluate_freshness(
         lag_minutes=round(lag, 2),
         reason="within_sla" if observed_at >= required_after else "stale_data",
     )
+
+
+def evaluate_reporting_dependencies(
+    dependencies: list[ReportingDependency], now: datetime | None = None
+) -> tuple[bool, dict[str, FreshnessResult]]:
+    """Require every declared WBR input to be ready; no dependency is implicit."""
+    required = {
+        "inventory_current", "inventory_movements", "container_events",
+        "component_recovery_events", "business_calendar", "target_plan",
+    }
+    supplied = {dependency.name for dependency in dependencies}
+    if supplied != required or len(dependencies) != len(required):
+        raise ValueError(f"Dependency registry mismatch: {sorted(required ^ supplied)}")
+    results = {
+        dependency.name: evaluate_freshness(
+            dependency.observed_at, now=now, maximum_lag=dependency.maximum_lag
+        )
+        for dependency in dependencies
+    }
+    return all(result.ready for result in results.values()), results

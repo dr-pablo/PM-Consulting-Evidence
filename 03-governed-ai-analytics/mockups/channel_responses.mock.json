@@ -3,31 +3,86 @@
   "recovered_implementation": false,
   "contains_real_operational_data": false,
   "deployed": false,
+  "contract_note": "Invented values and hypothetical channel bindings; no recovered channel, identity, semantic model, or runtime implementation.",
   "answer_envelope": {
     "request_id": "demo-request-001",
+    "correlation_reference": "demo-correlation-001",
+    "route": "calculation",
     "audience": "synthetic-planning-reviewers",
     "data_classification": "internal",
     "redaction_status": "not_required",
-    "answer": "Illustrative capacity is below forecast workload for the selected period.",
+    "query_context": {
+      "entity": "planning_inventory",
+      "measures": ["workload_minutes", "available_capacity_minutes", "capacity_gap"],
+      "time_grain": "reporting_period",
+      "periods": ["synthetic-period-02"]
+    },
+    "answer": "In this synthetic scenario, forecast workload exceeds available capacity by 120 minutes for the selected reporting period. The example is descriptive and remains pending review.",
     "evidence": [
       {
-        "source": "Planning Inventory",
-        "version": "synthetic-v1",
+        "source": "Synthetic capacity scenario",
+        "source_kind": "deterministic_calculation",
+        "version": "synthetic-assumption-v1",
+        "measure": "workload_minutes",
+        "value": 600,
+        "unit": "minutes",
+        "time_grain": "reporting_period",
+        "reporting_period": "synthetic-period-02",
+        "classification": "internal"
+      },
+      {
+        "source": "Synthetic capacity scenario",
+        "source_kind": "deterministic_calculation",
+        "version": "synthetic-assumption-v1",
+        "measure": "available_capacity_minutes",
+        "value": 480,
+        "unit": "minutes",
+        "time_grain": "reporting_period",
+        "reporting_period": "synthetic-period-02",
+        "classification": "internal"
+      },
+      {
+        "source": "Synthetic capacity scenario",
+        "source_kind": "deterministic_calculation",
+        "version": "synthetic-assumption-v1",
         "measure": "capacity_gap",
         "value": 120,
+        "unit": "minutes",
+        "time_grain": "reporting_period",
+        "reporting_period": "synthetic-period-02",
         "classification": "internal"
       }
     ],
-    "assumptions": ["Synthetic productive-time assumption v1"],
-    "warnings": ["Example values are not production data"],
-    "download_reference": "demo://authorized-export/001",
+    "assumptions": ["Synthetic productive-time assumption v1 applies to the selected reporting period."],
+    "warnings": ["Example values are invented and are not production data.", "Approval is pending; no export is available."],
+    "calculation_trace": ["600 workload minutes - 480 available capacity minutes = 120 minute capacity gap"],
+    "tool_runs": [
+      {
+        "tool": "calculate_capacity_scenario",
+        "status": "succeeded",
+        "authorization": "allowed",
+        "source_version": "synthetic-assumption-v1",
+        "warnings": [],
+        "truncated": false
+      }
+    ],
+    "audit": [
+      {"event": "request_received", "outcome": "accepted", "policy_version": "synthetic-policy-v1"},
+      {"event": "authorization_decided", "outcome": "allowed", "policy_version": "synthetic-policy-v1"},
+      {"event": "route_selected", "outcome": "selected", "policy_version": "synthetic-policy-v1"},
+      {"event": "tool_completed", "outcome": "succeeded", "policy_version": "synthetic-policy-v1"},
+      {"event": "approval_changed", "outcome": "pending", "policy_version": "synthetic-policy-v1"}
+    ],
+    "download_reference": null,
     "approval": {"required": true, "status": "pending"}
   },
   "web": {
+    "implementation_status": "mockup_only",
     "presentation": "answer_with_expandable_evidence",
     "answer_binding": "answer_envelope"
   },
   "teams": {
+    "implementation_status": "mockup_only",
     "presentation": "adaptive_card_summary",
     "answer_binding": "answer_envelope",
     "actions": ["View evidence", "Request approval"]

@@ -8,16 +8,34 @@ from delta.tables import DeltaTable
 from pyspark.sql import DataFrame, Window, functions as F
 
 
-def validate_required_keys(frame: DataFrame, keys: list[str]) -> DataFrame:
+SILVER_KEYS = {
+    "inventory_snapshot": ["facility_code", "storage_location", "container_id"],
+    "container_events": [
+        "facility_code", "rack_id", "container_id", "processing_cycle_id", "event_sequence"
+    ],
+    "component_recovery_events": [
+        "facility_code", "host_id", "component_id", "recovery_cycle_id", "event_sequence"
+    ],
+    "inventory_movements": ["facility_code", "movement_id"],
+}
+
+
+def split_key_rejects(frame: DataFrame, keys: list[str]) -> tuple[DataFrame, DataFrame]:
+    """Separate null-key rows for durable quarantine before publication."""
     missing = sorted(set(keys) - set(frame.columns))
     if missing:
         raise ValueError(f"Missing required keys: {missing}")
     null_condition = F.lit(False)
     for key in keys:
-        null_condition = null_condition | F.col(key).isNull()
-    if frame.filter(null_condition).limit(1).count():
-        raise ValueError("Null business keys must be quarantined before merge")
-    return frame
+        null_condition = (
+            null_condition
+            | F.col(key).isNull()
+            | (F.trim(F.col(key).cast("string")) == "")
+        )
+    rejects = frame.filter(null_condition).withColumn(
+        "_reject_reason", F.lit("NULL_OR_EMPTY_BUSINESS_KEY")
+    )
+    return frame.filter(~null_condition), rejects
 
 
 def latest_records(
@@ -28,13 +46,17 @@ def latest_records(
     source_row_number: str = "_source_row_number",
 ) -> DataFrame:
     """Choose one deterministic latest record at the declared business-key grain."""
-    validate_required_keys(frame, keys + [event_ts, source_id, source_row_number])
+    valid, rejects = split_key_rejects(
+        frame, keys + [event_ts, source_id, source_row_number]
+    )
+    if rejects.limit(1).count():
+        raise ValueError("Key or ordering rejects must be persisted before merge")
     order = Window.partitionBy(*keys).orderBy(
         F.col(event_ts).desc(),
         F.col(source_id).desc(),
         F.col(source_row_number).desc(),
     )
-    return frame.withColumn("_row_number", F.row_number().over(order)).filter(
+    return valid.withColumn("_row_number", F.row_number().over(order)).filter(
         F.col("_row_number") == 1
     ).drop("_row_number")
 
@@ -91,7 +113,9 @@ def publish_current_snapshot(
         if existing_latest is not None and latest < existing_latest:
             raise ValueError("Incoming snapshot is older than the published current state")
     current = source.filter(F.col(snapshot_date) == F.lit(latest))
-    validate_required_keys(current, keys)
+    current, rejects = split_key_rejects(current, keys)
+    if rejects.limit(1).count():
+        raise ValueError("Snapshot key rejects must be persisted before publication")
     actual_row_count = current.count()
     unique_row_count = current.select(*keys).distinct().count()
     if actual_row_count != expected_row_count or unique_row_count != expected_row_count:

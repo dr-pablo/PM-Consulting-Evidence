@@ -15,15 +15,15 @@ workspace and are intentionally excluded from this repository and its history.
 
 | Public evidence area | Treatment |
 | --- | --- |
-| BOM and processing time | Rewritten around neutral entities and configurable standards |
-| Complexity tiers and rates | Commercial values replaced with synthetic examples |
-| Labor and plan/actual | Corrected grain, additivity, and argument-position defects |
-| Scheduling and routing | Rebuilt to show explicit constraints, audit records, and conservation |
-| Fabric ingestion and Silver | Infrastructure and source taxonomy removed; failure modes made explicit |
+| BOM and processing time | Host, parent-item, component, and recovery-form grains retained; proper names and time standards replaced |
+| Complexity tiers and rates | Rack/container rating pattern retained; boundaries and commercial values replaced with synthetic examples |
+| Labor and plan/actual | Stage, workstation, department, scenario, and version grains retained; additivity and argument-position defects corrected |
+| Scheduling and routing | Identifier/model precedence retained; capacities and identifiers replaced; audit, exception, and conservation controls reconstructed |
+| Fabric ingestion and Silver | Safe dataset roles and key shapes retained; infrastructure and source-specific taxonomy removed; failure modes made explicit |
 | Freshness controls | Rebuilt as a timezone-aware SLA check |
-| Gold SQL models | Physical schemas and proprietary rules generalized |
-| Foundry/Fabric patterns | Converted to non-executable references because recovered SDK variants were unverified |
-| Agent grounding and intent | Generalized into requirements and interface-design examples |
+| Gold SQL models | Rack/container, host/component, inventory movement, backlog, and WBR grains retained; physical schemas and proprietary rules generalized |
+| Foundry/Fabric patterns | Converted to non-executable references with known defects called out because recovered SDK variants were unverified |
+| Agent grounding and intent | Recovered routing and grounding ideas separated from reconstructed authorization, evidence, and interface contracts |
 
 ## Interpretation Limits
 

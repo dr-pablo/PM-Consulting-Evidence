@@ -4,55 +4,173 @@ implementation_status: design_only
 schema_version: "1.0"
 notation: human_readable_interface_design_not_machine_validated_schema
 
+trusted_context:
+  supplied_by: trusted_broker
+  model_writable: false
+  required_fields:
+    - actor_reference
+    - tenant_reference
+    - authorization_scope_reference
+    - correlation_reference
+    - policy_version
+  handling:
+    identity_tokens: never_pass_to_model_or_audit
+    references: opaque_and_nonidentifying_in_model_context
+
+route_decision:
+  required: [route, confidence, reasons]
+  route:
+    type: enum
+    values: [direct_explanation, semantic_query, calculation, clarification_required]
+  confidence: {type: number, minimum: 0, maximum: 1}
+  reasons: {type: array, max_items: 5, item_type: string}
+  clarification:
+    required_when_route: clarification_required
+    required_fields: [missing, question]
+    material_ambiguities: [entity, measure, reporting_period, time_grain, unit, comparison_baseline]
+
+planning_vocabulary:
+  entities:
+    planning_inventory:
+      grain: one_record_per_asset_group_and_reporting_period
+      descriptive_measures: [inventory_count, average_complexity_score, workload_hours]
+      dimensions: [equipment_category, complexity_band, reporting_period]
+      filter_fields: [is_ready, equipment_category, complexity_band, reporting_period]
+  time_grains:
+    reporting_period: one_declared_inventory_snapshot_or_capacity_period
+    forecast_horizon: contiguous_declared_reporting_periods
+  scenario_outputs:
+    - workload_minutes
+    - available_capacity_minutes
+    - required_people
+    - capacity_gap
+
 tools:
   - name: semantic_inventory_query
     purpose: Retrieve descriptive measures from an approved semantic entity.
-    authorization: actor_must_have_entity_access
+    may_be_selected_for_routes: [semantic_query]
+    authorization: actor_must_have_entity_and_argument_access
     input:
-      required: [entity, measures]
+      additional_fields_allowed: false
+      required: [entity, measures, time, limit]
       entity:
         type: enum
         values: [planning_inventory]
       measures:
         type: array
+        min_items: 1
+        unique_items: true
         allowed_values: [inventory_count, average_complexity_score, workload_hours]
       filters:
         type: array
         max_items: 10
+        additional_item_fields_allowed: false
         item_fields: [field, operator, value]
         allowed_fields: [is_ready, equipment_category, complexity_band, reporting_period]
-        allowed_operators: [equals, in, greater_than, less_than]
+        allowed_operators: [equals, in]
+        value_type_must_match_field: true
       group_by:
         type: array
+        unique_items: true
         allowed_values: [equipment_category, complexity_band, reporting_period]
+      time:
+        required: [grain, periods]
+        grain: {type: enum, values: [reporting_period, forecast_horizon]}
+        periods: {type: array, min_items: 1, max_items: 24, item_type: string}
+      limit: {type: integer, minimum: 1, maximum: 500}
     output:
-      fields: [rows, semantic_model_version, measure_references, warnings]
+      required: [status, rows, source_version, measure_references, warnings, applied_time_grain, truncated]
+      status: [succeeded, partial]
+      fields: [status, rows, source_version, measure_references, warnings, applied_time_grain, truncated]
+      rows: allowlisted_projection_only
+    failures:
+      no_rows_returned: [denied, invalid_request, timeout, upstream_unavailable, source_version_mismatch]
+      no_data: successful_empty_result_not_zero
+      retryable_by_trusted_code_only: [upstream_unavailable]
 
   - name: calculate_capacity_scenario
     purpose: Execute deterministic workload and staffing calculations.
+    may_be_selected_for_routes: [calculation]
     authorization: actor_must_have_planning_access
     input:
-      required: [forecast_version, assumption_version, available_people, productive_minutes_per_person]
+      additional_fields_allowed: false
+      required: [forecast_version, assumption_version, period_inputs, rounding_policy]
       forecast_version: {type: string}
       assumption_version: {type: string}
-      available_people: {type: integer, minimum: 0}
-      productive_minutes_per_person: {type: number, exclusive_minimum: 0}
+      period_inputs:
+        type: array
+        min_items: 1
+        max_items: 24
+        unique_by: reporting_period
+        item_required: [reporting_period, workload_minutes, available_people, productive_minutes_per_person]
+        item_fields:
+          reporting_period: {type: string}
+          workload_minutes: {type: number, minimum: 0, unit: minutes}
+          available_people: {type: integer, minimum: 0}
+          productive_minutes_per_person: {type: number, exclusive_minimum: 0, unit: minutes}
+      rounding_policy: {type: enum, values: [fractional_fte, whole_people_ceiling]}
     output:
-      fields: [scenario_id, workload_minutes, required_people, capacity_gap, trace]
+      required: [status, scenario_reference, period_results, assumption_version, trace, warnings]
+      status: [succeeded]
+      fields: [status, scenario_reference, period_results, assumption_version, trace, warnings]
+      period_results:
+        one_result_per_input_reporting_period: true
+        fields: [reporting_period, workload_minutes, available_capacity_minutes, required_people, capacity_gap]
+      arithmetic_owned_by_tool: true
+      formula_semantics:
+        scope: independently_for_each_reporting_period
+        available_capacity_minutes: available_people_times_productive_minutes_per_person
+        required_people: workload_minutes_divided_by_productive_minutes_per_person_then_apply_rounding_policy
+        capacity_gap: workload_minutes_minus_available_capacity_minutes
+    failures:
+      no_result_returned: [denied, invalid_request, assumption_version_not_found, incompatible_grain]
+      model_fallback_calculation_allowed: false
 
   - name: export_evidence
     purpose: Create an authorized, short-lived export for a completed request.
+    may_be_selected_for_routes: [direct_explanation, semantic_query, calculation]
     authorization: actor_must_have_source_and_export_access
     input:
-      required: [request_id, format, bound_actor_id, bound_tenant_id, authorization_scope_hash]
-      request_id: {type: string, supplied_by: trusted_broker}
+      additional_fields_allowed: false
+      required: [request_reference, format, bound_actor_reference, bound_tenant_reference, authorization_scope_reference]
+      request_reference: {type: string, supplied_by: trusted_broker}
       format: {type: enum, values: [csv, xlsx]}
-      bound_actor_id: {type: string, supplied_by: trusted_broker}
-      bound_tenant_id: {type: string, supplied_by: trusted_broker}
-      authorization_scope_hash: {type: string, supplied_by: trusted_broker}
+      bound_actor_reference: {type: string, supplied_by: trusted_broker}
+      bound_tenant_reference: {type: string, supplied_by: trusted_broker}
+      authorization_scope_reference: {type: string, supplied_by: trusted_broker}
     output:
+      required: [download_reference, expires_at, audience, row_count, source_versions]
       fields: [download_reference, expires_at, audience, row_count, source_versions]
       maximum_ttl_minutes: 15
+    preconditions:
+      - reauthorize_at_export_time
+      - redaction_status_must_not_be_blocked
+      - required_approval_must_be_approved
+
+normalized_failure:
+  required: [status, code, safe_message, retryable]
+  status: failed
+  code:
+    - denied
+    - invalid_request
+    - timeout
+    - upstream_unavailable
+    - source_version_mismatch
+    - assumption_version_not_found
+    - incompatible_grain
+  provider_exception_included: false
+
+audit_event:
+  required: [correlation_reference, event, outcome, policy_version]
+  event:
+    - request_received
+    - authorization_decided
+    - route_selected
+    - tool_completed
+    - redaction_applied
+    - approval_changed
+    - export_completed
+  excluded_fields: [raw_prompt, identity_token, result_rows, generated_file, provider_exception]
 
 controls:
   - authorize_before_tool_selection
@@ -63,3 +181,5 @@ controls:
   - outputs_include_assumptions_and_source_versions
   - consequential_results_require_approval_state
   - telemetry_excludes_raw_prompts_and_rows
+  - partial_truncated_stale_and_suppressed_results_are_explicit
+  - denied_invalid_and_ambiguous_requests_are_not_retried_by_the_model

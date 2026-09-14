@@ -1,7 +1,8 @@
 """Convert forecast volume into direct workload and contribution margin.
 
 Classification: sanitized_derivative
-Production status: generalized prior implementation pattern, not a complete P&L
+Production status: recovered forecast/economics pattern with corrected version
+and join grain; synthetic assumptions, not a complete P&L
 """
 
 from dataclasses import dataclass
@@ -11,16 +12,18 @@ from typing import Iterable
 
 @dataclass(frozen=True)
 class ForecastLine:
+    forecast_version: str
     period: str
-    model_family: str
-    equipment_form: str
+    model_code: str
+    recovery_form: str
     quantity: int
 
 
 @dataclass(frozen=True)
 class ModelEconomics:
-    model_family: str
-    equipment_form: str
+    model_code: str
+    recovery_form: str
+    complexity_tier: str
     modeled_minutes: Decimal
     unit_rate: Decimal
 
@@ -32,19 +35,30 @@ def calculate_forecast_economics(
 ) -> list[dict[str, object]]:
     """Return auditable row-level economics before any portfolio summary."""
     economics_rows = list(economics)
-    economics_by_model = {
-        (row.model_family, row.equipment_form): row for row in economics_rows
+    economics_by_model_form = {
+        (row.model_code, row.recovery_form): row for row in economics_rows
     }
-    if len(economics_by_model) != len(economics_rows):
-        raise ValueError("Economics must be unique by model family and equipment form")
+    if len(economics_by_model_form) != len(economics_rows):
+        raise ValueError("Economics must be unique by model and recovery form")
+    if direct_labor_cost_per_hour < 0:
+        raise ValueError("Direct labor cost cannot be negative")
+    if any(row.modeled_minutes < 0 or row.unit_rate < 0 for row in economics_rows):
+        raise ValueError("Modeled minutes and illustrative rates cannot be negative")
+    forecast_rows = list(forecast)
+    forecast_keys = {
+        (row.forecast_version, row.period, row.model_code, row.recovery_form)
+        for row in forecast_rows
+    }
+    if len(forecast_keys) != len(forecast_rows):
+        raise ValueError("Forecast lines must be unique at versioned model/form grain")
     results = []
-    for line in forecast:
+    for line in forecast_rows:
         if line.quantity < 0:
             raise ValueError("Forecast quantity cannot be negative")
-        model = economics_by_model.get((line.model_family, line.equipment_form))
+        model = economics_by_model_form.get((line.model_code, line.recovery_form))
         if model is None:
             raise ValueError(
-                f"Missing economics for model/form {line.model_family}/{line.equipment_form}"
+                f"Missing economics for model/form {line.model_code}/{line.recovery_form}"
             )
 
         quantity = Decimal(line.quantity)
@@ -57,8 +71,10 @@ def calculate_forecast_economics(
         results.append(
             {
                 "period": line.period,
-                "model_family": line.model_family,
-                "equipment_form": line.equipment_form,
+                "forecast_version": line.forecast_version,
+                "model_code": line.model_code,
+                "recovery_form": line.recovery_form,
+                "complexity_tier": model.complexity_tier,
                 "quantity": line.quantity,
                 "workload_hours": workload_hours.quantize(Decimal("0.01")),
                 "revenue": revenue,
@@ -66,6 +82,8 @@ def calculate_forecast_economics(
                 "contribution_margin": contribution_margin,
             }
         )
+    if len(results) != len(forecast_rows):
+        raise AssertionError("Forecast row conservation failed")
     return results
 
 

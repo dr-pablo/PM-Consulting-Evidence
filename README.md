@@ -13,9 +13,9 @@ proprietary identifiers have been removed or replaced.
 
 | Case study | What the folder demonstrates | Evidence form |
 | --- | --- | --- |
-| [Hardware complexity to profitable unit economics](01-complexity-to-unit-economics/) | BOM-based effort, complexity tiers, labor capacity, scheduling, unit economics, and plan-versus-actual controls | Sanitized Python design extracts |
-| [Fragmented Azure to a unified Fabric platform](02-fabric-modernization/) | Incremental ingestion, Bronze/Silver processing, Delta upserts, freshness controls, and Gold SQL models | Sanitized PySpark and SQL design extracts |
-| [Governed self-service analytics and AI](03-governed-ai-analytics/) | Foundry/Fabric orchestration patterns, grounding rules, typed tool boundaries, identity, and evidence responses | Sanitized prior patterns, reconstructed design, and synthetic mockups |
+| [Hardware complexity to profitable unit economics](01-complexity-to-unit-economics/) | Host/parent-item/component effort, rack/container complexity, versioned forecasts, labor scenarios, constrained scheduling, and plan-versus-actual controls | Sanitized Python design extracts |
+| [Fragmented Azure to a unified Fabric platform](02-fabric-modernization/) | Multi-dataset ingestion, snapshot/upsert contracts, recovery streams, inventory movement and aging, freshness gates, and WBR models | Sanitized PySpark and SQL design extracts |
+| [Governed self-service analytics and AI](03-governed-ai-analytics/) | Three recovered routing patterns, their known risks, reconstructed tool and evidence boundaries, grounding rules, and synthetic channel responses | Sanitized prior patterns, reconstructed design, and synthetic mockups |
 
 ## How to Read This Repository
 
@@ -31,6 +31,8 @@ Each file declares its evidence classification:
 These files demonstrate architecture and engineering judgment. They are not an
 engagement archive and do not independently verify deployment, ownership,
 production scale, commercial outcomes, or every claim on the associated pages.
+Operational nouns and grains are retained where they explain the engineering;
+proper names, source-specific identifiers, and commercial values are not.
 
 ## Disclosure Boundary
 

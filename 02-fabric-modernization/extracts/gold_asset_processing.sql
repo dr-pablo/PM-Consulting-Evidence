@@ -2,75 +2,81 @@
 Classification: sanitized_derivative
 Production status: generalized Gold SQL pattern with synthetic entities
 
-Grain: one row per asset_id. Event behavior is supplied through a neutral
-reference policy rather than private literals embedded in the query.
+Grain: one row per operational cycle. Container processing is keyed by
+(facility_code, rack_id, container_id, processing_cycle_id); component recovery
+is keyed by (facility_code, host_id, component_id, recovery_cycle_id).
 */
 
-WITH normalized_events AS (
+WITH container_events AS (
     SELECT
-        e.asset_id,
+        'CONTAINER_PROCESSING' AS process_stream,
+        e.facility_code,
+        e.rack_id AS parent_unit_id,
+        e.container_id AS child_unit_id,
+        e.processing_cycle_id AS process_cycle_id,
         e.event_ts,
-        e.source_record_id,
-        p.is_processing_event,
-        p.is_completion_event,
+        e.event_sequence,
+        p.is_start_event,
+        p.is_terminal_event,
         p.resulting_status,
+        e._source_id
+    FROM silver.container_events AS e
+    INNER JOIN reference.container_event_policy AS p ON p.event_type = e.event_type
+),
+recovery_events AS (
+    SELECT
+        'COMPONENT_RECOVERY' AS process_stream,
+        e.facility_code,
+        e.host_id AS parent_unit_id,
+        e.component_id AS child_unit_id,
+        e.recovery_cycle_id AS process_cycle_id,
+        e.event_ts,
+        e.event_sequence,
+        p.is_start_event,
+        p.is_terminal_event,
+        p.resulting_status,
+        e._source_id
+    FROM silver.component_recovery_events AS e
+    INNER JOIN reference.recovery_event_policy AS p ON p.event_type = e.event_type
+),
+all_events AS (
+    SELECT * FROM container_events
+    UNION ALL
+    SELECT * FROM recovery_events
+),
+ranked_events AS (
+    SELECT
+        e.*,
         ROW_NUMBER() OVER (
-            PARTITION BY e.asset_id
-            ORDER BY e.event_ts DESC, e.source_record_id DESC
+            PARTITION BY process_stream, facility_code, parent_unit_id,
+                         child_unit_id, process_cycle_id
+            ORDER BY event_ts DESC, event_sequence DESC, _source_id DESC
         ) AS latest_event_number
-    FROM silver.asset_events AS e
-    INNER JOIN reference.event_policy AS p ON p.event_type = e.event_type
+    FROM all_events AS e
 ),
-event_bounds AS (
+cycle_milestones AS (
     SELECT
-        asset_id,
-        MIN(CASE WHEN is_processing_event = 1 THEN event_ts END) AS first_processing_ts,
-        MAX(CASE WHEN is_completion_event = 1 THEN event_ts END) AS completion_ts,
+        process_stream,
+        facility_code,
+        parent_unit_id,
+        child_unit_id,
+        process_cycle_id,
+        MIN(CASE WHEN is_start_event = 1 THEN event_ts END) AS started_ts,
+        MAX(CASE WHEN is_terminal_event = 1 THEN event_ts END) AS terminal_ts,
+        MAX(CASE WHEN latest_event_number = 1 THEN resulting_status END) AS cycle_status,
         COUNT(*) AS event_count
-    FROM normalized_events
-    GROUP BY asset_id
-),
-latest_status AS (
-    SELECT asset_id, resulting_status
-    FROM normalized_events
-    WHERE latest_event_number = 1
-),
-ranked_assets AS (
-    SELECT
-        a.asset_id,
-        a.customer_program,
-        a.product_family,
-        a.received_ts,
-        a.source_record_id,
-        ROW_NUMBER() OVER (
-            PARTITION BY a.asset_id
-            ORDER BY a.updated_ts DESC, a.source_record_id DESC
-        ) AS row_number
-    FROM silver.assets AS a
-),
-canonical AS (
-    SELECT
-        a.asset_id,
-        a.customer_program,
-        a.product_family,
-        a.received_ts,
-        e.first_processing_ts,
-        e.completion_ts,
-        e.event_count,
-        s.resulting_status
-    FROM ranked_assets AS a
-    LEFT JOIN event_bounds AS e ON e.asset_id = a.asset_id
-    LEFT JOIN latest_status AS s ON s.asset_id = a.asset_id
-    WHERE a.row_number = 1
+    FROM ranked_events
+    GROUP BY process_stream, facility_code, parent_unit_id, child_unit_id, process_cycle_id
 )
 SELECT
-    asset_id,
-    customer_program,
-    product_family,
-    received_ts,
-    first_processing_ts,
-    completion_ts,
-    resulting_status AS processing_status,
-    DATEFROMPARTS(YEAR(completion_ts), MONTH(completion_ts), 1) AS reporting_month,
+    process_stream,
+    facility_code,
+    parent_unit_id,
+    child_unit_id,
+    process_cycle_id,
+    started_ts,
+    terminal_ts,
+    cycle_status,
+    DATEDIFF(MINUTE, started_ts, terminal_ts) AS elapsed_minutes,
     event_count
-FROM canonical;
+FROM cycle_milestones;

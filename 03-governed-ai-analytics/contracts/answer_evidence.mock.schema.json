@@ -2,33 +2,126 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://example.invalid/schemas/answer-evidence.json",
   "title": "Governed analytics answer envelope",
-  "description": "Synthetic portfolio contract; not a recovered production schema.",
+  "description": "Synthetic portfolio contract for a channel-neutral governed answer; not a recovered or deployed production schema.",
   "type": "object",
-  "required": ["request_id", "audience", "data_classification", "redaction_status", "answer", "evidence", "assumptions", "warnings", "approval"],
+  "required": ["request_id", "correlation_reference", "route", "audience", "data_classification", "redaction_status", "query_context", "answer", "evidence", "assumptions", "warnings", "tool_runs", "audit", "approval"],
   "properties": {
-    "request_id": {"type": "string"},
-    "audience": {"type": "string"},
+    "request_id": {"type": "string", "minLength": 1},
+    "correlation_reference": {"type": "string", "minLength": 1},
+    "route": {"enum": ["direct_explanation", "semantic_query", "calculation", "clarification_required"]},
+    "audience": {"type": "string", "minLength": 1},
     "data_classification": {"enum": ["public", "internal", "confidential", "restricted"]},
     "redaction_status": {"enum": ["not_required", "applied", "blocked"]},
-    "answer": {"type": "string"},
+    "query_context": {
+      "type": ["object", "null"],
+      "required": ["entity", "measures", "time_grain", "periods"],
+      "properties": {
+        "entity": {"const": "planning_inventory"},
+        "measures": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"enum": ["inventory_count", "average_complexity_score", "workload_hours", "workload_minutes", "available_capacity_minutes", "required_people", "capacity_gap"]}
+        },
+        "time_grain": {"enum": ["reporting_period", "forecast_horizon"]},
+        "periods": {"type": "array", "minItems": 1, "maxItems": 24, "items": {"type": "string"}}
+      },
+      "additionalProperties": false
+    },
+    "clarification": {
+      "type": "object",
+      "required": ["missing", "question"],
+      "properties": {
+        "missing": {"type": "array", "minItems": 1, "items": {"enum": ["entity", "measure", "reporting_period", "time_grain", "unit", "comparison_baseline"]}},
+        "question": {"type": "string", "minLength": 1},
+        "allowed_answers": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": false
+    },
+    "answer": {"type": "string", "minLength": 1},
     "evidence": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["source", "version", "measure", "classification"],
+        "required": ["source", "source_kind", "version", "measure", "value", "unit", "time_grain", "reporting_period", "classification"],
         "properties": {
           "source": {"type": "string"},
+          "source_kind": {"enum": ["semantic_measure", "deterministic_calculation", "approved_reference"]},
           "version": {"type": "string"},
-          "measure": {"type": "string"},
+          "measure": {"enum": ["inventory_count", "average_complexity_score", "workload_hours", "workload_minutes", "available_capacity_minutes", "required_people", "capacity_gap", "reference_statement"]},
           "value": {"type": ["string", "number", "integer", "boolean", "null"]},
+          "unit": {"type": ["string", "null"]},
+          "time_grain": {"type": ["string", "null"]},
+          "reporting_period": {"type": ["string", "null"]},
           "classification": {"enum": ["public", "internal", "confidential", "restricted"]}
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {"properties": {"source_kind": {"const": "deterministic_calculation"}}, "required": ["source_kind"]},
+            "then": {"properties": {"reporting_period": {"type": "string", "minLength": 1}}}
+          }
+        ]
       }
     },
     "assumptions": {"type": "array", "items": {"type": "string"}},
     "warnings": {"type": "array", "items": {"type": "string"}},
     "calculation_trace": {"type": "array", "items": {"type": "string"}},
+    "tool_runs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["tool", "status", "authorization", "warnings"],
+        "properties": {
+          "tool": {"enum": ["semantic_inventory_query", "calculate_capacity_scenario", "export_evidence"]},
+          "status": {"enum": ["succeeded", "partial", "failed"]},
+          "authorization": {"enum": ["allowed", "denied"]},
+          "source_version": {"type": "string"},
+          "error_code": {"enum": ["denied", "invalid_request", "timeout", "upstream_unavailable", "source_version_mismatch", "assumption_version_not_found", "incompatible_grain"]},
+          "warnings": {"type": "array", "items": {"type": "string"}},
+          "truncated": {"type": "boolean"}
+        },
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {"properties": {"authorization": {"const": "denied"}}, "required": ["authorization"]},
+            "then": {
+              "required": ["error_code"],
+              "properties": {"status": {"const": "failed"}, "error_code": {"const": "denied"}}
+            }
+          },
+          {
+            "if": {"properties": {"status": {"enum": ["succeeded", "partial"]}}, "required": ["status"]},
+            "then": {"properties": {"authorization": {"const": "allowed"}}}
+          },
+          {
+            "if": {"properties": {"status": {"const": "failed"}}, "required": ["status"]},
+            "then": {"required": ["error_code"]}
+          },
+          {
+            "if": {"properties": {"error_code": {"const": "denied"}}, "required": ["error_code"]},
+            "then": {"properties": {"authorization": {"const": "denied"}}}
+          },
+          {
+            "if": {"properties": {"tool": {"const": "calculate_capacity_scenario"}}, "required": ["tool"]},
+            "then": {"properties": {"status": {"enum": ["succeeded", "failed"]}}}
+          }
+        ]
+      }
+    },
+    "audit": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["event", "outcome", "policy_version"],
+        "properties": {
+          "event": {"enum": ["request_received", "authorization_decided", "route_selected", "tool_completed", "redaction_applied", "approval_changed", "export_completed"]},
+          "outcome": {"enum": ["accepted", "allowed", "denied", "selected", "succeeded", "partial", "failed", "not_required", "applied", "blocked", "pending", "approved", "rejected"]},
+          "policy_version": {"type": "string"}
+        },
+        "additionalProperties": false
+      }
+    },
     "download_reference": {"type": ["string", "null"]},
     "approval": {
       "type": "object",
@@ -79,6 +172,16 @@
       }
     },
     {
+      "if": {"properties": {"data_classification": {"const": "confidential"}}},
+      "then": {
+        "properties": {
+          "evidence": {
+            "items": {"properties": {"classification": {"enum": ["public", "internal", "confidential"]}}}
+          }
+        }
+      }
+    },
+    {
       "if": {"properties": {"redaction_status": {"const": "blocked"}}},
       "then": {
         "properties": {
@@ -87,6 +190,43 @@
           "download_reference": {"type": "null"}
         }
       }
+    },
+    {
+      "if": {"properties": {"route": {"const": "clarification_required"}}},
+      "then": {"required": ["clarification"], "properties": {"query_context": {"type": "null"}, "tool_runs": {"maxItems": 0}}}
+    },
+    {
+      "if": {
+        "properties": {
+          "route": {"const": "calculation"},
+          "redaction_status": {"not": {"const": "blocked"}}
+        },
+        "required": ["route", "redaction_status"]
+      },
+      "then": {
+        "required": ["calculation_trace"],
+        "properties": {
+          "evidence": {
+            "minItems": 1,
+            "contains": {"properties": {"source_kind": {"const": "deterministic_calculation"}}, "required": ["source_kind"]}
+          },
+          "calculation_trace": {"minItems": 1},
+          "tool_runs": {
+            "minItems": 1,
+            "contains": {
+              "properties": {
+                "tool": {"const": "calculate_capacity_scenario"},
+                "status": {"const": "succeeded"}
+              },
+              "required": ["tool", "status"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {"properties": {"approval": {"properties": {"status": {"enum": ["pending", "rejected"]}}, "required": ["status"]}}},
+      "then": {"properties": {"download_reference": {"type": "null"}}}
     }
   ],
   "additionalProperties": false
