@@ -42,12 +42,14 @@ and recovery status     movement history/backlog
           semantic/reporting layer
 ```
 
-The manifest records one row per discovered file and treats
-`(dataset, checksum)` as immutable source identity. Bronze merges on source
-identity plus source row number so a retry can complete an interrupted batch
-without duplicating rows. Registered CSV inputs that are empty, have header or
-schema mismatches, fail parsing, or contain null keys or invalid timestamps are
-routed to quarantine or reject records with bounded diagnostics.
+The example builds a pending manifest entry for each eligible discovered file
+and uses `(dataset, checksum)` as content-based source identity. The intended
+Bronze key is source identity plus source row number. Duplicate-safe retries
+depend on deterministic row numbering, durable manifest state, and a merge
+callback that enforces that key; those persistence details are not shown.
+Registered CSV inputs that are empty, have header or schema mismatches, fail
+parsing, or contain null keys or invalid timestamps are expected to produce
+quarantine or reject records with bounded diagnostics.
 
 Current inventory is snapshot state at
 `(facility_code, storage_location, container_id)` and is replaced only after

@@ -1,7 +1,7 @@
 """Separate current-state snapshot publication from keyed Delta upserts.
 
 Classification: sanitized_derivative
-Production status: corrected and generalized PySpark/Delta design extract
+Evidence status: corrected and generalized PySpark/Delta design extract
 """
 
 from delta.tables import DeltaTable

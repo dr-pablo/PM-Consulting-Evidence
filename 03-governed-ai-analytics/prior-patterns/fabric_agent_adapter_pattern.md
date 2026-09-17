@@ -2,7 +2,7 @@
 
 Classification: `sanitized_derivative`
 
-Production status: recovered adapter concept; SDK invocation and runtime unverified
+Evidence status: recovered adapter concept; SDK invocation and runtime unverified
 
 ## Recovered Prior Pattern
 

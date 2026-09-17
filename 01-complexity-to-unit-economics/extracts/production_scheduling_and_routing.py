@@ -1,7 +1,7 @@
 """Route exceptions and schedule available work under explicit constraints.
 
 Classification: sanitized_derivative
-Production status: clean-room correction of recovered identifier/model routing
+Evidence status: clean-room correction of recovered identifier/model routing
 and scheduling concepts; identifiers and capacities are synthetic
 """
 

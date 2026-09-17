@@ -1,7 +1,7 @@
 """Model additive staffing demand and compare a selected plan with actuals.
 
 Classification: sanitized_derivative
-Production status: corrected and generalized design extract
+Evidence status: corrected and generalized design extract
 """
 
 from collections import defaultdict

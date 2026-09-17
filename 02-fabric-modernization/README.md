@@ -12,8 +12,8 @@ deployable workspace artifacts or representations of production outcomes.
 
 | File | What it demonstrates |
 | --- | --- |
-| [`incremental_file_ingestion.py`](extracts/incremental_file_ingestion.py) | Registers multiple datasets, fingerprints files, records a file manifest, and makes Bronze retries idempotent |
-| [`silver_snapshot_and_upsert.py`](extracts/silver_snapshot_and_upsert.py) | Publishes complete inventory snapshots while keyed event streams use ordered Delta upserts and quarantine routing |
+| [`incremental_file_ingestion.py`](extracts/incremental_file_ingestion.py) | Registers datasets, fingerprints files, builds manifest payloads, and defines obligations for duplicate-safe Bronze retries |
+| [`silver_snapshot_and_upsert.py`](extracts/silver_snapshot_and_upsert.py) | Separates key rejects, requires their persistence, publishes validated snapshots, and applies ordered Delta upserts |
 | [`reporting_freshness_check.py`](extracts/reporting_freshness_check.py) | Gates a reporting product on multiple timezone-aware dependencies and their individual SLAs |
 | [`gold_asset_processing.sql`](extracts/gold_asset_processing.sql) | Models rack/container processing and host/component recovery at explicit composite-key grains |
 | [`gold_inventory_aging.sql`](extracts/gold_inventory_aging.sql) | Distinguishes latest inventory state from movement history and bands open backlog age |
@@ -22,21 +22,23 @@ deployable workspace artifacts or representations of production outcomes.
 ## Operational Contracts
 
 The illustrative registry separates inventory snapshots from append-oriented
-container processing, component recovery, and inventory movement datasets. A
-file is eligible only after its stable content identity is absent from the
-completed manifest; malformed files and invalid rows are retained as rejects
-with reason codes rather than silently dropped. Bronze row identity is
-`(_source_id, _source_row_number)`.
+container processing, component recovery, and inventory movement datasets. The
+example builds pending manifest entries only for files whose content identity is
+absent from the supplied completed set. Its callbacks are required to persist
+file outcomes and rejects with bounded reason codes. The intended Bronze row key
+is `(_source_id, _source_row_number)`; duplicate-safe retries also require stable
+row numbering and a merge implementation that enforces that key.
 
-Silver contracts intentionally differ by dataset. Inventory current state is a
-validated replacement of one complete snapshot at
+Silver contracts intentionally differ by dataset. The snapshot function writes
+a validated replacement of one complete snapshot at
 `(facility_code, storage_location, container_id)`. Container events use
 `(facility_code, rack_id, container_id, processing_cycle_id, event_sequence)`;
 component recovery events use
 `(facility_code, host_id, component_id, recovery_cycle_id, event_sequence)`;
 inventory movements use `(facility_code, movement_id)`. The event and movement
 tables preserve history through keyed upserts; they are not overwritten by a
-later snapshot.
+later snapshot. Reject DataFrames are identified by the extract, but their
+durable storage remains an implementation requirement outside the snippet.
 
 Gold models expose processing-cycle milestones, recovery-cycle milestones,
 latest inventory state, inventory movement context, backlog age bands, and

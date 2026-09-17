@@ -1,7 +1,7 @@
 """Convert forecast volume into direct workload and contribution margin.
 
 Classification: sanitized_derivative
-Production status: recovered forecast/economics pattern with corrected version
+Evidence status: recovered forecast/economics pattern with corrected version
 and join grain; synthetic assumptions, not a complete P&L
 """
 

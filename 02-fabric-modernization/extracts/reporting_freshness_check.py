@@ -1,7 +1,7 @@
 """Evaluate whether a reporting dependency satisfies its freshness SLA.
 
 Classification: sanitized_derivative
-Production status: corrected synthetic control example
+Evidence status: corrected synthetic control example
 """
 
 from dataclasses import dataclass

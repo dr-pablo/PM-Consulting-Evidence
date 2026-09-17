@@ -2,7 +2,7 @@
 
 Classification: `sanitized_derivative`
 
-Production status: recovered domain rules; calculation implementation absent
+Evidence status: recovered domain rules; calculation implementation absent
 
 ## Recovered Prior Pattern
 

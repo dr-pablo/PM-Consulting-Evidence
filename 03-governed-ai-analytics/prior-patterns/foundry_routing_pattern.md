@@ -2,7 +2,7 @@
 
 Classification: `sanitized_derivative`
 
-Production status: recovered prior orchestration pattern; runtime unverified
+Evidence status: recovered prior orchestration pattern; runtime unverified
 
 ## Recovered Prior Pattern
 

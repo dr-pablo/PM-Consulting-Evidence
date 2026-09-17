@@ -1,6 +1,6 @@
 /*
 Classification: sanitized_derivative
-Production status: generalized Gold SQL pattern with synthetic entities
+Evidence status: generalized Gold SQL pattern with synthetic entities
 
 Grain: one row per operational cycle. Container processing is keyed by
 (facility_code, rack_id, container_id, processing_cycle_id); component recovery

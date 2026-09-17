@@ -19,10 +19,10 @@ proprietary identifiers have been removed or replaced.
 
 ## How to Read This Repository
 
-Each file declares its evidence classification:
+Each substantive evidence artifact declares its classification:
 
-- `sanitized_derivative`: independently cleaned and generalized from private
-  implementation evidence; not an exact production file.
+- `sanitized_derivative`: cleaned and generalized from private implementation
+  or design evidence; not an exact production file.
 - `reconstructed_from_context`: architecture recreated from retained design
   context where complete original implementation was unavailable.
 - `synthetic_portfolio_example`: new mock data or contracts created only to

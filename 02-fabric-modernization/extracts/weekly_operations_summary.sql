@@ -1,6 +1,6 @@
 /*
 Classification: sanitized_derivative
-Production status: generalized weekly reporting pattern
+Evidence status: generalized weekly reporting pattern
 
 Calendar-first WBR aggregation preserves zero-activity reporting weeks and the
 workday denominator. Publication requires every declared dependency to be ready.

@@ -1,6 +1,6 @@
 /*
 Classification: sanitized_derivative
-Production status: corrected and generalized Gold SQL pattern
+Evidence status: corrected and generalized Gold SQL pattern
 
 Grain: one row per (facility_code, storage_location, container_id) in the latest
 eligible snapshot. Movement history supplies backlog-entry context but never

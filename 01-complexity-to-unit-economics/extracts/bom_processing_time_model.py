@@ -1,7 +1,7 @@
 """Estimate recovery effort from a one-level equipment bill of materials.
 
 Classification: sanitized_derivative
-Production status: design pattern derived from prior implementation evidence
+Evidence status: design pattern derived from prior implementation evidence
 
 Names and values are synthetic. Host/parent-item/component grain is a sanitized
 recovered pattern; status and coverage controls are corrected public design.

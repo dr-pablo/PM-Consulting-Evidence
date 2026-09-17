@@ -1,7 +1,7 @@
 """Assign transparent complexity bands and illustrative unit rates.
 
 Classification: sanitized_derivative
-Production status: recovered band/form pattern with corrected explicit statuses;
+Evidence status: recovered band/form pattern with corrected explicit statuses;
 all boundaries and rates are synthetic
 """
 

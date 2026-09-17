@@ -1,7 +1,7 @@
-"""Record immutable file identity before appending staged data to Bronze.
+"""Derive content-based file identity before appending staged data to Bronze.
 
 Classification: sanitized_derivative
-Production status: generalized Fabric/Spark implementation pattern
+Evidence status: generalized Fabric/Spark implementation pattern
 """
 
 from dataclasses import dataclass
@@ -132,7 +132,7 @@ def commit_bronze_batch(
     set_file_statuses(batch_id, outcomes)
 
 
-# The merge implementation uses (_source_id, _source_row_number) as its
-# idempotency key. A retry after manifest failure therefore cannot append the
-# same source rows twice. File-level states permit valid files to complete while
-# empty, malformed, schema-mismatched, or key-invalid inputs remain quarantined.
+# The intended idempotency key is (_source_id, _source_row_number). Duplicate-safe
+# retries require stable row numbering and a merge callback that enforces this
+# key; both are obligations outside this extract. File-level outcomes distinguish
+# completed inputs from bounded quarantine reasons.

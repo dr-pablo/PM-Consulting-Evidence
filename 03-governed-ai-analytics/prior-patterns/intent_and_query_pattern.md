@@ -2,7 +2,7 @@
 
 Classification: `sanitized_derivative`
 
-Production status: recovered request-to-query pattern; execution unverified
+Evidence status: recovered request-to-query pattern; execution unverified
 
 ## Recovered Prior Pattern
 
